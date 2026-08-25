@@ -222,29 +222,24 @@ function App() {
   return (
     <main className="game-shell">
       <header className="topbar">
-        <div className="brand"><span className="brand-mark">☂</span><strong>雨后小镇</strong></div>
-        <div className="world-chip">第 1 天 <strong>{formatTime(game.minute)}</strong></div>
-        <div className="world-chip">🌧 小雨</div>
-        <div className="world-chip status">世界状态：{isOver ? '茶会时间' : '平和'}</div>
+        <div className="brand"><span className="brand-mark">🏡</span><strong>雨后小镇</strong></div>
+        <div className="world-chip">◷　第 1 天 <strong>{formatTime(game.minute)}</strong></div>
+        <div className="world-chip">🌧　小雨</div>
+        <div className="world-chip status">🌿　世界状态：<strong>{isOver ? '茶会时间' : '平和'}</strong></div>
         <div className="top-actions">
-          <button title={`当前响应来源：${game.aiSource}`} className={`mode-button ${game.liveAi ? 'live' : ''}`} onClick={() => setGame((current) => ({ ...current, liveAi: !current.liveAi }))}>✦ {game.liveAi ? '真实 AI' : game.aiSource === 'OFFLINE' ? '离线演示' : '稳定演示'}</button>
+          <button title={`当前响应来源：${game.aiSource}`} className={`mode-button ${game.liveAi ? 'live' : ''}`} onClick={() => setGame((current) => ({ ...current, liveAi: !current.liveAi }))}>🧠　AI 模式 <i /></button>
+          <button className="world-button" onClick={() => setEndingOpen(true)}>◉　影响世界</button>
+          <button className="publish-button" onClick={() => setNoticeOpen(true)}>📣　发布活动</button>
           <button className="reset-button" onClick={resetGame}>重新开始</button>
-          <button aria-label="查看结局" className="icon-button" onClick={() => setEndingOpen(true)}>◎</button>
-          <button aria-label="静音" className="icon-button" onClick={() => setGame((current) => ({ ...current, muted: !current.muted }))}>{game.muted ? '×' : '♪'}</button>
         </div>
       </header>
 
       <section className="workspace">
         <div className="map-column">
           <GameCanvas />
-          <div className="objective-card">
-            <div><span className="eyebrow">今日目标</span><strong>促成雨后茶会</strong></div>
-            <div className="objective-progress"><span>{attendees} / 3 位居民确认参加</span><div><i style={{ width: `${Math.max(5, attendees / 3 * 100)}%` }} /></div></div>
-            <button onClick={() => setNoticeOpen(true)}>{game.announced ? '公告已发布' : '查看公告栏'}</button>
-          </div>
           <div className="timeline">
             <div className="timeline-title"><strong>行动记录</strong><span>{isOver ? '可以查看今日结局' : '小镇正在运转'}</span></div>
-            {game.logs.slice(-3).map((log, index) => <div className="log-row" key={`${log.time}-${index}`}><time>{log.time}</time><b className={`dot ${log.tone}`} />{log.text}</div>)}
+            {game.logs.slice(-2).map((log, index) => <div className="log-row" key={`${log.time}-${index}`}><time>{log.time}</time><b className={`dot ${log.tone}`} /><span className="log-avatar">{log.tone === 'amber' ? '岚' : log.tone === 'blue' ? '宁' : '你'}</span><span>{log.text}</span></div>)}
           </div>
         </div>
 
