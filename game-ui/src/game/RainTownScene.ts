@@ -24,8 +24,8 @@ export class RainTownScene extends Phaser.Scene {
 
   preload() {
     this.load.spritesheet('town-characters', '/characters-v2.png', {
-      frameWidth: 627,
-      frameHeight: 627,
+      frameWidth: 256,
+      frameHeight: 256,
       endFrame: 3,
     })
   }
