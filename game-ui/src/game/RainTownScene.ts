@@ -9,6 +9,7 @@ const keyOf = ({ x, y }: GridPoint) => `${x},${y}`
 
 export class RainTownScene extends Phaser.Scene {
   private player?: Phaser.GameObjects.Container
+  private playerSprite?: Phaser.GameObjects.Sprite
   private playerGrid: GridPoint = { x: 2, y: 7 }
   private tileW = 88
   private tileH = 44
@@ -25,6 +26,11 @@ export class RainTownScene extends Phaser.Scene {
   preload() {
     this.load.image('rain-town-background', '/rain-town-scene-v2.webp')
     this.load.spritesheet('town-characters', '/characters-v2.png', {
+      frameWidth: 256,
+      frameHeight: 256,
+      endFrame: 3,
+    })
+    this.load.spritesheet('town-characters-back', '/characters-back-v2.png', {
       frameWidth: 256,
       frameHeight: 256,
       endFrame: 3,
@@ -151,15 +157,23 @@ export class RainTownScene extends Phaser.Scene {
       if (index >= path.length) {
         this.walking = false
         this.destinationMarker?.destroy()
+        this.playerSprite?.setTexture('town-characters', 0).setFlipX(false).setY(-25)
         return
       }
       const node = path[index]
       const point = this.iso(node)
+      const dx = point.x - this.player.x
+      const dy = point.y - this.player.y
+      this.playerSprite?.setTexture(dy < 0 ? 'town-characters-back' : 'town-characters', 0)
+      this.playerSprite?.setFlipX(dx < 0)
+      if (this.playerSprite) {
+        this.tweens.add({ targets: this.playerSprite, y: -31, duration: 110, yoyo: true, ease: 'Sine.easeInOut' })
+      }
       this.tweens.add({
         targets: this.player,
         x: point.x,
         y: point.y - 14,
-        duration: 150,
+        duration: 220,
         ease: 'Linear',
         onUpdate: () => this.player?.setDepth((this.player?.y ?? 0) + 94),
         onComplete: () => {
@@ -186,6 +200,7 @@ export class RainTownScene extends Phaser.Scene {
       backgroundColor: isPlayer ? '#167466e8' : '#0b1c22e8', padding: { x: 7, y: 4 },
     }).setOrigin(0.5)
     c.add([shadow, sprite, label])
+    if (isPlayer) this.playerSprite = sprite
     if (!isPlayer) {
       c.setSize(74, 96).setInteractive({ useHandCursor: true })
       c.on('pointerover', () => {

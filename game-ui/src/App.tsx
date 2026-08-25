@@ -227,7 +227,7 @@ function App() {
         <div className="world-chip">🌧　小雨</div>
         <div className="world-chip status">🌿　世界状态：<strong>{isOver ? '茶会时间' : '平和'}</strong></div>
         <div className="top-actions">
-          <button title={`当前响应来源：${game.aiSource}`} className={`mode-button ${game.liveAi ? 'live' : ''}`} onClick={() => setGame((current) => ({ ...current, liveAi: !current.liveAi }))}>🧠　AI 模式 <i /></button>
+          <button title={`当前响应来源：${game.aiSource}`} className={`mode-button ${game.liveAi ? 'live' : 'demo'}`} onClick={() => setGame((current) => ({ ...current, liveAi: !current.liveAi }))}>🧠　{game.liveAi ? '真实 AI' : '稳定演示'} <i /></button>
           <button className="world-button" onClick={() => setEndingOpen(true)}>◉　影响世界</button>
           <button className="publish-button" onClick={() => setNoticeOpen(true)}>📣　发布活动</button>
           <button className="reset-button" onClick={resetGame}>重新开始</button>
