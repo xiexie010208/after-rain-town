@@ -81,6 +81,12 @@ function App() {
   }, [game.npcs])
 
   useEffect(() => {
+    const openNotice = () => setNoticeOpen(true)
+    window.addEventListener('rain-town:notice-open', openNotice)
+    return () => window.removeEventListener('rain-town:notice-open', openNotice)
+  }, [])
+
+  useEffect(() => {
     if (!game.started || game.muted) return
     const context = new AudioContext()
     const seconds = 2

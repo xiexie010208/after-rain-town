@@ -22,6 +22,14 @@ export class RainTownScene extends Phaser.Scene {
 
   constructor() { super('rain-town') }
 
+  preload() {
+    this.load.spritesheet('town-characters', '/characters-v2.png', {
+      frameWidth: 627,
+      frameHeight: 627,
+      endFrame: 3,
+    })
+  }
+
   private iso({ x, y }: GridPoint) {
     return {
       x: this.origin.x + (x - y) * this.tileW / 2,
@@ -49,12 +57,13 @@ export class RainTownScene extends Phaser.Scene {
     }
     this.drawPlaza()
     this.drawCafe()
+    this.drawNoticeBoard()
     this.drawDecor()
 
-    this.makePerson('alan', '阿岚', 4, 4, 0xd79a62)
-    this.makePerson('weining', '魏宁', 8, 5, 0x6e8fac)
-    this.makePerson('suhe', '苏禾', 8, 3, 0x72a48f)
-    this.player = this.makePerson('player', '你', this.playerGrid.x, this.playerGrid.y, 0x65c8b5, true)
+    this.makePerson('alan', '阿岚', 4, 4, 1)
+    this.makePerson('weining', '魏宁', 8, 5, 2)
+    this.makePerson('suhe', '苏禾', 8, 3, 3)
+    this.player = this.makePerson('player', '你', this.playerGrid.x, this.playerGrid.y, 0, true)
 
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (this.walking) return
@@ -174,19 +183,50 @@ export class RainTownScene extends Phaser.Scene {
     const p = this.iso({ x: 5, y: 5 })
     const g = this.add.graphics().setDepth(p.y)
     g.fillStyle(0x536669, 0.95).fillEllipse(p.x, p.y + 18, 270, 145).lineStyle(4, 0x6e7d78, 0.5).strokeEllipse(p.x, p.y + 18, 270, 145)
-    g.fillStyle(0x1e493d).fillCircle(p.x, p.y - 8, 42)
-    g.fillStyle(0x52755a).fillCircle(p.x, p.y - 25, 57)
+    g.fillStyle(0x243f3c).fillEllipse(p.x, p.y + 12, 88, 42)
+    g.fillStyle(0x8a6348).fillEllipse(p.x, p.y + 5, 72, 30)
+    g.fillStyle(0xd7b16f).fillEllipse(p.x, p.y, 65, 23)
+    g.fillStyle(0xe8d7ac).fillCircle(p.x - 18, p.y - 4, 5).fillCircle(p.x + 12, p.y + 2, 5)
+    g.fillStyle(0x9a6d4c).fillRect(p.x - 31, p.y + 11, 7, 25).fillRect(p.x + 24, p.y + 11, 7, 25)
     this.add.text(p.x, p.y + 85, '中央广场', { fontFamily: 'system-ui', fontSize: '15px', color: '#f0f5ef', backgroundColor: '#12262ccc', padding: { x: 10, y: 6 } }).setOrigin(0.5).setDepth(p.y + 100)
   }
 
   private drawCafe() {
     const p = this.iso({ x: 9, y: 2 })
     const g = this.add.graphics().setDepth(p.y + 30)
-    g.fillStyle(0x2a2924).fillRect(p.x - 85, p.y - 70, 170, 110)
-    g.fillStyle(0x77543b).fillRect(p.x - 73, p.y - 58, 64, 55)
-    g.fillStyle(0xe7b86d, 0.85).fillRect(p.x + 12, p.y - 58, 55, 55)
-    g.fillStyle(0x173a36).fillTriangle(p.x - 100, p.y - 70, p.x, p.y - 128, p.x + 100, p.y - 70)
-    this.add.text(p.x, p.y + 54, '咖啡馆', { fontFamily: 'system-ui', fontSize: '15px', color: '#fff4df', backgroundColor: '#1b2526dd', padding: { x: 10, y: 6 } }).setOrigin(0.5).setDepth(p.y + 120)
+    g.fillStyle(0x1b2423).fillRect(p.x - 88, p.y - 74, 176, 116)
+    g.fillStyle(0x654934).fillRect(p.x - 78, p.y - 64, 156, 98)
+    g.fillStyle(0x253834).fillRect(p.x - 19, p.y - 38, 38, 72)
+    g.fillStyle(0x3d2921).fillRect(p.x - 13, p.y - 31, 26, 65)
+    g.fillStyle(0xe5b86e, 0.92).fillRect(p.x - 67, p.y - 52, 36, 35).fillRect(p.x + 31, p.y - 52, 36, 35)
+    g.lineStyle(3, 0x5b3d2e, 1).strokeRect(p.x - 67, p.y - 52, 36, 35).strokeRect(p.x + 31, p.y - 52, 36, 35)
+    g.fillStyle(0xe7d1a3).fillRect(p.x - 75, p.y - 72, 150, 15)
+    for (let i = 0; i < 6; i++) g.fillStyle(i % 2 ? 0xb85f49 : 0xf0d9af).fillRect(p.x - 75 + i * 25, p.y - 72, 25, 15)
+    g.fillStyle(0x183a35).fillTriangle(p.x - 103, p.y - 74, p.x, p.y - 133, p.x + 103, p.y - 74)
+    g.fillStyle(0x8e5d43).fillRect(p.x + 50, p.y - 126, 18, 39)
+    g.fillStyle(0xe7c47f).fillCircle(p.x + 7, p.y - 2, 3)
+    this.add.text(p.x, p.y - 87, '雨巷咖啡', { fontFamily: 'serif', fontStyle: 'bold', fontSize: '15px', color: '#ffe5ac' }).setOrigin(0.5).setDepth(p.y + 31)
+    this.add.text(p.x, p.y + 54, '咖啡馆', { fontFamily: 'system-ui', fontSize: '15px', color: '#fff4df', backgroundColor: '#1b2526e8', padding: { x: 10, y: 6 } }).setOrigin(0.5).setDepth(p.y + 120)
+  }
+
+  private drawNoticeBoard() {
+    const p = this.iso({ x: 3, y: 5 })
+    const c = this.add.container(p.x, p.y - 5).setDepth(p.y + 72)
+    const shadow = this.add.ellipse(0, 29, 62, 18, 0x071315, 0.34)
+    const g = this.add.graphics()
+    g.fillStyle(0x5d402d).fillRect(-29, -37, 58, 49)
+    g.fillStyle(0xd3b777).fillRect(-24, -32, 48, 38)
+    g.fillStyle(0xefe2bd).fillRect(-18, -25, 18, 14).fillRect(4, -18, 14, 17)
+    g.fillStyle(0xb85e4d).fillCircle(-15, -22, 2).fillCircle(9, -15, 2)
+    g.fillStyle(0x4d3527).fillRect(-20, 10, 6, 24).fillRect(14, 10, 6, 24)
+    const label = this.add.text(0, 44, '公告栏', { fontFamily: 'system-ui', fontStyle: 'bold', fontSize: '12px', color: '#fff3d3', backgroundColor: '#583b2de8', padding: { x: 7, y: 4 } }).setOrigin(0.5)
+    c.add([shadow, g, label]).setSize(72, 82).setInteractive({ useHandCursor: true })
+    c.on('pointerover', () => label.setBackgroundColor('#a05c38ee'))
+    c.on('pointerout', () => label.setBackgroundColor('#583b2de8'))
+    c.on('pointerdown', (_pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => {
+      event.stopPropagation()
+      window.dispatchEvent(new CustomEvent('rain-town:notice-open'))
+    })
   }
 
   private drawDecor() {
@@ -197,18 +237,42 @@ export class RainTownScene extends Phaser.Scene {
       g.fillStyle(0x476c50).fillCircle(p.x, p.y - 12, 25)
       g.fillStyle(0x5f805c).fillCircle(p.x - 10, p.y - 20, 18)
     })
+
+    ;[[2, 5], [6, 8], [10, 5]].forEach(([x, y]) => {
+      const p = this.iso({ x, y })
+      const g = this.add.graphics().setDepth(p.y + 18)
+      g.fillStyle(0x263a39).fillRect(p.x - 2, p.y - 28, 4, 43)
+      g.fillStyle(0xf2d18a, 0.82).fillCircle(p.x, p.y - 31, 8)
+      g.lineStyle(2, 0xd9bd7d, 0.26).strokeCircle(p.x, p.y - 31, 13)
+    })
+
+    ;[[3, 7], [7, 6], [9, 7]].forEach(([x, y], index) => {
+      const p = this.iso({ x, y })
+      const puddle = this.add.ellipse(p.x + 7, p.y + 24, 42 + index * 5, 13, 0x88b9bd, 0.2).setDepth(p.y + 3)
+      puddle.setStrokeStyle(1, 0xb9d8d8, 0.28)
+    })
   }
 
-  private makePerson(id: string, name: string, x: number, y: number, color: number, isPlayer = false) {
+  private makePerson(id: string, name: string, x: number, y: number, frame: number, isPlayer = false) {
     const p = this.iso({ x, y })
     const c = this.add.container(p.x, p.y - 14).setDepth(p.y + 80)
-    const shadow = this.add.ellipse(0, 16, 32, 13, 0x051012, 0.42)
-    const body = this.add.circle(0, 0, 16, color).setStrokeStyle(isPlayer ? 3 : 2, isPlayer ? 0xb5fff0 : 0xe9e3d0)
-    const head = this.add.circle(0, -19, 10, 0xf1c8a6).setStrokeStyle(2, 0x43342c)
-    const label = this.add.text(0, 31, name, { fontFamily: 'system-ui', fontSize: '12px', color: '#ffffff', backgroundColor: '#0b1c22d9', padding: { x: 6, y: 3 } }).setOrigin(0.5)
-    c.add([shadow, body, head, label])
+    const shadow = this.add.ellipse(0, 18, 43, 14, 0x051012, 0.38)
+    const sprite = this.add.sprite(0, -25, 'town-characters', frame).setDisplaySize(92, 92)
+    const label = this.add.text(0, 39, name, {
+      fontFamily: 'system-ui', fontStyle: 'bold', fontSize: '12px', color: '#ffffff',
+      backgroundColor: isPlayer ? '#167466e8' : '#0b1c22e8', padding: { x: 7, y: 4 },
+    }).setOrigin(0.5)
+    c.add([shadow, sprite, label])
     if (!isPlayer) {
-      c.setSize(54, 72).setInteractive({ useHandCursor: true })
+      c.setSize(74, 96).setInteractive({ useHandCursor: true })
+      c.on('pointerover', () => {
+        this.tweens.add({ targets: sprite, scaleX: sprite.scaleX * 1.06, scaleY: sprite.scaleY * 1.06, duration: 100 })
+        label.setBackgroundColor('#b2673be8')
+      })
+      c.on('pointerout', () => {
+        this.tweens.add({ targets: sprite, displayWidth: 92, displayHeight: 92, duration: 100 })
+        label.setBackgroundColor('#0b1c22e8')
+      })
       c.on('pointerdown', (_pointer: Phaser.Input.Pointer, _localX: number, _localY: number, event: Phaser.Types.Input.EventData) => {
         event.stopPropagation()
         window.dispatchEvent(new CustomEvent('rain-town:npc-select', { detail: id }))
