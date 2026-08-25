@@ -14,13 +14,23 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.UncheckedIOException;
+import org.springframework.http.MediaType;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 @RestController
 @RequestMapping("/api/games")
 public class GameController {
     private final GameService service;
+    private final ObjectMapper objectMapper;
 
-    public GameController(GameService service) { this.service = service; }
+    public GameController(GameService service, ObjectMapper objectMapper) {
+        this.service = service;
+        this.objectMapper = objectMapper;
+    }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -42,6 +52,31 @@ public class GameController {
         return service.talk(id, request.npcId(), request.message(), Boolean.TRUE.equals(request.live()));
     }
 
+    @PostMapping(value = "/{id}/dialogue/stream", produces = MediaType.APPLICATION_NDJSON_VALUE)
+    public StreamingResponseBody dialogueStream(@PathVariable String id,
+                                                 @Valid @RequestBody DialogueRequest request) {
+        return output -> {
+            try {
+                var result = service.talkStreaming(id, request.npcId(), request.message(),
+                    Boolean.TRUE.equals(request.live()),
+                    delta -> writeStreamEvent(output, new StreamEvent("delta", delta, null)));
+                writeStreamEvent(output, new StreamEvent("done", null, result));
+            } catch (UncheckedIOException failure) {
+                throw failure.getCause();
+            }
+        };
+    }
+
+    private void writeStreamEvent(OutputStream output, StreamEvent event) {
+        try {
+            output.write(objectMapper.writeValueAsBytes(event));
+            output.write('\n');
+            output.flush();
+        } catch (IOException failure) {
+            throw new UncheckedIOException(failure);
+        }
+    }
+
     @PutMapping("/{id}/snapshot")
     public JsonNode saveSnapshot(@PathVariable String id, @RequestBody JsonNode snapshot) {
         return service.saveClientSnapshot(id, snapshot);
@@ -60,5 +95,6 @@ public class GameController {
 
     public record StartRequest(@Size(max = 20) String playerName) {}
     public record DialogueRequest(@NotBlank String npcId, @NotBlank @Size(max = 200) String message, Boolean live) {}
+    public record StreamEvent(String type, String text, GameService.ChatResult result) {}
     public record ErrorResponse(String message) {}
 }
