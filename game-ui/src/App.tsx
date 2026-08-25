@@ -257,7 +257,7 @@ function App() {
             ))}
           </div>
           <div className="profile-head">
-            <div className={`portrait portrait-${selected}`}>{npc.name.slice(0, 1)}</div>
+            <div className={`portrait portrait-${selected}`} aria-label={`${npc.name}的角色肖像`}><img src="/characters-v2.png" alt="" /></div>
             <div><h1>{npc.name}</h1><p>{npc.role}</p><span className="personality">{npc.tag}</span></div>
           </div>
           <div className="meters">
