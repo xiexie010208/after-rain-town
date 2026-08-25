@@ -199,7 +199,7 @@ function App() {
     }))
     try {
       const remote = await createGame(name)
-      setGame((current) => ({ ...current, sessionId: remote.sessionId }))
+      setGame((current) => ({ ...current, sessionId: remote.sessionId, liveAi: true }))
     } catch {
       setGame((current) => ({ ...current, aiSource: 'OFFLINE', liveAi: false }))
     }
@@ -249,7 +249,7 @@ function App() {
           <div className="meters">
             <label>⚡ 精力 <span>{npc.energy}/100</span><i><b style={{ width: `${npc.energy}%` }} /></i></label>
             <label>♥ 心情 <span>{npc.mood}/100</span><i><b className="mood" style={{ width: `${npc.mood}%` }} /></i></label>
-            <label>◆ 熟悉度 <span>{npc.relation}/{npc.threshold}</span><i><b className="relation" style={{ width: `${Math.min(100, npc.relation / npc.threshold * 100)}%` }} /></i></label>
+            <label>◆ 熟悉度 <span>{Math.min(npc.relation, npc.threshold)}/{npc.threshold}</span><i><b className="relation" style={{ width: `${Math.min(100, npc.relation / npc.threshold * 100)}%` }} /></i></label>
           </div>
           <section className="info-card"><span>当前目标</span><strong>{npc.goal}</strong></section>
           <section className="info-card"><span>近期记忆 · {npc.memories.length}/10</span><p>{npc.memories.at(-1)}</p></section>
