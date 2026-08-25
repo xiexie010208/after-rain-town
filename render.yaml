@@ -34,13 +34,13 @@ services:
       - key: AI_API_KEY
         sync: false
       - key: AI_BASE_URL
-        value: https://api.llm.ustc.edu.cn/v1
+        value: https://api.deepseek.com
       - key: AI_MODEL
-        value: qwen-chat
+        value: deepseek-v4-flash
       - key: AI_FALLBACK_MODEL
-        value: deepseek-v4-flash-ascend
+        value: deepseek-v4-pro
       - key: AI_READ_TIMEOUT_SECONDS
-        value: "25"
+        value: "45"
 
 databases:
   - name: after-rain-town-db
