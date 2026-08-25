@@ -36,8 +36,10 @@ button { cursor: pointer; }
 .npc-switcher button { border:0; background:transparent; color:#7f979a; padding:7px; border-radius:9px; }
 .npc-switcher button.active { color:#fff; background:#1b343c; }.npc-switcher span { display:inline-grid; place-items:center; width:24px; height:24px; margin-right:5px; border-radius:50%; background:#315157; }
 .profile-head { display:flex; gap:15px; align-items:center; padding:20px 8px 17px; }
-.portrait { display:grid; place-items:center; flex:0 0 76px; height:76px; border-radius:18px; font-size:28px; font-weight:800; border:1px solid #deae6d; background:linear-gradient(145deg,#856347,#392e2a); }
-.portrait-1 { background:linear-gradient(145deg,#526779,#293342); border-color:#6e90aa}.portrait-2{background:linear-gradient(145deg,#557468,#263e38);border-color:#79a493}
+.portrait { position:relative; overflow:hidden; flex:0 0 76px; height:76px; border-radius:18px; border:1px solid #deae6d; background:linear-gradient(145deg,#856347,#392e2a); }
+.portrait img { position:absolute; width:200%; height:200%; max-width:none; object-fit:cover; }
+.portrait-0 img { left:-100%; top:0; }.portrait-1 img { left:0; top:-100%; }.portrait-2 img { left:-100%; top:-100%; }
+.portrait-1 { border-color:#6e90aa}.portrait-2{border-color:#79a493}
 .profile-head h1 { font-size:25px; margin:0; }.profile-head p { color:#c1cecc; margin:2px 0 8px; font-size:14px; }
 .personality { padding:4px 8px; color:#ffd9ac; border:1px solid #8f613d; background:#35291f; border-radius:7px; font-size:11px; }
 .meters { padding:0 8px 8px; }.meters label { display:grid; grid-template-columns:70px 1fr; align-items:center; gap:6px; margin:9px 0; font-size:13px; }.meters label span { text-align:right; color:#92a5a7; font-size:11px; }.meters i { grid-column:1/-1; height:7px; overflow:hidden; border-radius:9px; background:#263d45; }.meters b { display:block; height:100%; border-radius:9px; background:#79c87a; }.meters b.mood { background:#e9a44e; }
