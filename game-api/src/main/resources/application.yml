@@ -20,8 +20,8 @@ management:
 app:
   frontend-origin: ${FRONTEND_ORIGIN:http://localhost:5173,https://after-rain-town.vercel.app}
   ai:
-    base-url: ${AI_BASE_URL:https://api.llm.ustc.edu.cn/v1}
+    base-url: ${AI_BASE_URL:https://api.deepseek.com}
     api-key: ${AI_API_KEY:}
-    model: ${AI_MODEL:qwen-chat}
-    fallback-model: ${AI_FALLBACK_MODEL:deepseek-v4-flash-ascend}
+    model: ${AI_MODEL:deepseek-v4-flash}
+    fallback-model: ${AI_FALLBACK_MODEL:deepseek-v4-pro}
     read-timeout-seconds: ${AI_READ_TIMEOUT_SECONDS:25}
