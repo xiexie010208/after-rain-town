@@ -36,9 +36,11 @@ services:
       - key: AI_BASE_URL
         value: https://api.llm.ustc.edu.cn/v1
       - key: AI_MODEL
-        value: deepseek-v4-flash-ascend
+        value: qwen-chat
       - key: AI_FALLBACK_MODEL
-        value: qwen3.8-chat
+        value: deepseek-v4-flash-ascend
+      - key: AI_READ_TIMEOUT_SECONDS
+        value: "25"
 
 databases:
   - name: after-rain-town-db
