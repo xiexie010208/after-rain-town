@@ -1,0 +1,26 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  datasource:
+    url: jdbc:postgresql://${DATABASE_HOST:localhost}:${DATABASE_PORT:5432}/${DATABASE_NAME:after_rain_town}
+    username: ${DATABASE_USER:postgres}
+    password: ${DATABASE_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+app:
+  frontend-origin: ${FRONTEND_ORIGIN:http://localhost:5173}
+  ai:
+    base-url: ${AI_BASE_URL:https://api.llm.ustc.edu.cn/v1}
+    api-key: ${AI_API_KEY:}
+    model: ${AI_MODEL:deepseek-v4-flash-ascend}
+    fallback-model: ${AI_FALLBACK_MODEL:qwen3.8-chat}

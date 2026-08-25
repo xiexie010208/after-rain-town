@@ -1,0 +1,11 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:afterrain;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+
+app:
+  frontend-origin: http://localhost:5174,http://127.0.0.1:5174

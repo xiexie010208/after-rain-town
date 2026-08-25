@@ -1,0 +1,64 @@
+package cn.edu.ustc.afterrain.game;
+
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.NotBlank;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+import com.fasterxml.jackson.databind.JsonNode;
+
+@RestController
+@RequestMapping("/api/games")
+public class GameController {
+    private final GameService service;
+
+    public GameController(GameService service) { this.service = service; }
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public GameState start(@Valid @RequestBody(required = false) StartRequest request) {
+        return service.start(request == null ? null : request.playerName());
+    }
+
+    @GetMapping("/{id}")
+    public GameState get(@PathVariable String id) { return service.get(id); }
+
+    @PutMapping("/{id}")
+    public GameState save(@PathVariable String id, @RequestBody GameState state) { return service.save(id, state); }
+
+    @PostMapping("/{id}/reset")
+    public GameState reset(@PathVariable String id) { return service.reset(id); }
+
+    @PostMapping("/{id}/dialogue")
+    public GameService.ChatResult dialogue(@PathVariable String id, @Valid @RequestBody DialogueRequest request) {
+        return service.talk(id, request.npcId(), request.message(), Boolean.TRUE.equals(request.live()));
+    }
+
+    @PutMapping("/{id}/snapshot")
+    public JsonNode saveSnapshot(@PathVariable String id, @RequestBody JsonNode snapshot) {
+        return service.saveClientSnapshot(id, snapshot);
+    }
+
+    @GetMapping("/{id}/snapshot")
+    public JsonNode getSnapshot(@PathVariable String id) { return service.getClientSnapshot(id); }
+
+    @ExceptionHandler(GameNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ErrorResponse notFound(GameNotFoundException ex) { return new ErrorResponse(ex.getMessage()); }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse badRequest(IllegalArgumentException ex) { return new ErrorResponse(ex.getMessage()); }
+
+    public record StartRequest(@Size(max = 20) String playerName) {}
+    public record DialogueRequest(@NotBlank String npcId, @NotBlank @Size(max = 200) String message, Boolean live) {}
+    public record ErrorResponse(String message) {}
+}

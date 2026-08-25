@@ -1,0 +1,10 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+*.local
+game-ui/node_modules/
+game-ui/dist/
+game-api/target/
+work/
+outputs/AI小镇-最终效果图.png

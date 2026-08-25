@@ -1,0 +1,48 @@
+services:
+  - type: web
+    name: after-rain-town-api
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./game-api/Dockerfile
+    dockerContext: ./game-api
+    healthCheckPath: /actuator/health
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_HOST
+        fromDatabase:
+          name: after-rain-town-db
+          property: host
+      - key: DATABASE_PORT
+        fromDatabase:
+          name: after-rain-town-db
+          property: port
+      - key: DATABASE_NAME
+        fromDatabase:
+          name: after-rain-town-db
+          property: database
+      - key: DATABASE_USER
+        fromDatabase:
+          name: after-rain-town-db
+          property: user
+      - key: DATABASE_PASSWORD
+        fromDatabase:
+          name: after-rain-town-db
+          property: password
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_BASE_URL
+        value: https://api.llm.ustc.edu.cn/v1
+      - key: AI_MODEL
+        value: deepseek-v4-flash-ascend
+      - key: AI_FALLBACK_MODEL
+        value: qwen3.8-chat
+
+databases:
+  - name: after-rain-town-db
+    plan: free
+    region: singapore
+    postgresMajorVersion: "17"
+    ipAllowList: []
