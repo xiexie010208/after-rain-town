@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { GameCanvas } from './game/GameCanvas'
-import { createGame, saveSnapshot, sendDialogue } from './api'
+import { createGame, saveSnapshot, sendDialogueStream } from './api'
 import './App.css'
 
 type Npc = {
@@ -60,6 +60,8 @@ function App() {
   const [message, setMessage] = useState('')
   const [noticeOpen, setNoticeOpen] = useState(false)
   const [endingOpen, setEndingOpen] = useState(false)
+  const [isSending, setIsSending] = useState(false)
+  const [streamingReply, setStreamingReply] = useState('')
 
   useEffect(() => {
     localStorage.setItem('after-rain-town-save', JSON.stringify(game))
@@ -138,7 +140,7 @@ function App() {
 
   const talk = async (content: string) => {
     const clean = content.trim().slice(0, 200)
-    if (!clean || game.dialogueCount >= 20 || isOver) return
+    if (!clean || game.dialogueCount >= 20 || isOver || isSending) return
     const replies = [
       `听起来很有意思。雨停以后，大家确实需要一个聚在一起的理由。`,
       `我记住了。你这个新邻居，比我想象中更愿意了解小镇。`,
@@ -147,12 +149,18 @@ function App() {
     let reply = replies[(game.dialogueCount + selected) % replies.length]
     let source: SaveData['aiSource'] = 'MOCK'
     if (game.liveAi && game.sessionId) {
+      setIsSending(true)
+      setStreamingReply('')
       try {
-        const result = await sendDialogue(game.sessionId, npc.id, clean, true)
+        const result = await sendDialogueStream(game.sessionId, npc.id, clean, true,
+          (delta) => setStreamingReply((current) => current + delta))
         reply = result.reply
         source = result.source.startsWith('LIVE') ? 'LIVE' : 'MOCK'
       } catch {
         source = 'OFFLINE'
+      } finally {
+        setIsSending(false)
+        setStreamingReply('')
       }
     }
     setGame((current) => {
@@ -260,8 +268,9 @@ function App() {
           </section>
           <section className="chat-card">
             <strong>和{npc.name}聊聊</strong>
-            <div className="quick-prompts"><button onClick={() => talk('你现在想做什么？')}>你现在想做什么？</button><button onClick={() => talk('你喜欢雨天吗？')}>你喜欢雨天吗？</button></div>
-            <div className="chat-input"><input maxLength={200} value={message} disabled={game.dialogueCount >= 20 || isOver} onChange={(event) => setMessage(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') talk(message) }} placeholder={`和${npc.name}说点什么…`} /><button onClick={() => talk(message)}>发送</button></div>
+            {isSending && <div className="streaming-reply"><span>{npc.name}正在回应</span><p>{streamingReply || '…'}</p></div>}
+            <div className="quick-prompts"><button disabled={isSending} onClick={() => talk('你现在想做什么？')}>你现在想做什么？</button><button disabled={isSending} onClick={() => talk('你喜欢雨天吗？')}>你喜欢雨天吗？</button></div>
+            <div className="chat-input"><input maxLength={200} value={message} disabled={game.dialogueCount >= 20 || isOver || isSending} onChange={(event) => setMessage(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') talk(message) }} placeholder={`和${npc.name}说点什么…`} /><button disabled={isSending} onClick={() => talk(message)}>{isSending ? '回应中' : '发送'}</button></div>
             <small>还可以自由对话 {20 - game.dialogueCount} 次 · 每次推进 10 分钟</small>
           </section>
         </aside>
