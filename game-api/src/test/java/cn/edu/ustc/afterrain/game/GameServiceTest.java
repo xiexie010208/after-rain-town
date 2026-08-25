@@ -46,4 +46,17 @@ class GameServiceTest {
         assertThat(service.getClientSnapshot(started.sessionId()).path("minute").asInt()).isEqualTo(970);
         assertThat(service.getClientSnapshot(started.sessionId()).path("announced").asBoolean()).isTrue();
     }
+
+    @Test
+    void streamsDialogueAndPersistsTheCompletedTurn() {
+        var started = service.start("小雨");
+        var streamed = new StringBuilder();
+
+        var result = service.talkStreaming(started.sessionId(), "alan", "茶会准备得怎么样？", true,
+            streamed::append);
+
+        assertThat(streamed.toString()).isEqualTo(result.reply());
+        assertThat(result.state().conversationsRemaining()).isEqualTo(19);
+        assertThat(service.get(started.sessionId()).logs()).hasSize(3);
+    }
 }
