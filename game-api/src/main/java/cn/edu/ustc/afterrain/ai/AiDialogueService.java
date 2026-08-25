@@ -10,9 +10,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import java.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class AiDialogueService {
+    private static final Logger log = LoggerFactory.getLogger(AiDialogueService.class);
     private final RestClient client;
     private final String apiKey;
     private final String primaryModel;
@@ -22,12 +25,13 @@ public class AiDialogueService {
         RestClient.Builder builder,
         @Value("${app.ai.base-url:https://api.llm.ustc.edu.cn/v1}") String baseUrl,
         @Value("${app.ai.api-key:}") String apiKey,
-        @Value("${app.ai.model:deepseek-v4-flash-ascend}") String primaryModel,
-        @Value("${app.ai.fallback-model:qwen3.8-chat}") String fallbackModel
+        @Value("${app.ai.model:qwen-chat}") String primaryModel,
+        @Value("${app.ai.fallback-model:deepseek-v4-flash-ascend}") String fallbackModel,
+        @Value("${app.ai.read-timeout-seconds:25}") int readTimeoutSeconds
     ) {
         var requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(Duration.ofSeconds(4));
-        requestFactory.setReadTimeout(Duration.ofSeconds(12));
+        requestFactory.setReadTimeout(Duration.ofSeconds(readTimeoutSeconds));
         this.client = builder.baseUrl(baseUrl).requestFactory(requestFactory).build();
         this.apiKey = apiKey;
         this.primaryModel = primaryModel;
@@ -39,12 +43,19 @@ public class AiDialogueService {
         try {
             return new DialogueReply(call(primaryModel, state, npc, playerMessage), "LIVE", primaryModel);
         } catch (RuntimeException firstFailure) {
+            log.warn("Primary AI model {} failed: {}", primaryModel, safeFailure(firstFailure));
             try {
                 return new DialogueReply(call(fallbackModel, state, npc, playerMessage), "LIVE_FALLBACK", fallbackModel);
-            } catch (RuntimeException ignored) {
+            } catch (RuntimeException fallbackFailure) {
+                log.warn("Fallback AI model {} failed: {}", fallbackModel, safeFailure(fallbackFailure));
                 return mockReply(npc, state.teaPartyAnnounced());
             }
         }
+    }
+
+    private String safeFailure(RuntimeException failure) {
+        String message = failure.getMessage();
+        return failure.getClass().getSimpleName() + (message == null ? "" : ": " + message.replaceAll("sk-[A-Za-z0-9_-]+", "sk-***"));
     }
 
     private String call(String model, GameState state, GameState.NpcState npc, String playerMessage) {
