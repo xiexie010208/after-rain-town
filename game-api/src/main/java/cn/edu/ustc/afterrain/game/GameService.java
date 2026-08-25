@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Consumer;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -58,6 +59,17 @@ public class GameService {
 
     @Transactional
     public ChatResult talk(String id, String npcId, String message, boolean liveRequested) {
+        return talkInternal(id, npcId, message, liveRequested, null);
+    }
+
+    @Transactional
+    public ChatResult talkStreaming(String id, String npcId, String message, boolean liveRequested,
+                                    Consumer<String> onDelta) {
+        return talkInternal(id, npcId, message, liveRequested, onDelta);
+    }
+
+    private ChatResult talkInternal(String id, String npcId, String message, boolean liveRequested,
+                                    Consumer<String> onDelta) {
         var entity = repository.findById(id).orElseThrow(() -> new GameNotFoundException(id));
         var state = read(entity.getStateJson());
         if (state.conversationsRemaining() <= 0) throw new IllegalArgumentException("本局自由对话次数已用完");
@@ -66,7 +78,9 @@ public class GameService {
         if (cleanMessage.isBlank() || cleanMessage.length() > 200) throw new IllegalArgumentException("对话内容须为1至200字");
         var target = state.npcs().stream().filter(npc -> npc.id().equals(npcId)).findFirst()
             .orElseThrow(() -> new IllegalArgumentException("NPC不存在"));
-        var reply = aiDialogueService.reply(state, target, cleanMessage, liveRequested);
+        var reply = onDelta == null
+            ? aiDialogueService.reply(state, target, cleanMessage, liveRequested)
+            : aiDialogueService.streamReply(state, target, cleanMessage, liveRequested, onDelta);
 
         var updatedNpcs = state.npcs().stream().map(npc -> npc.id().equals(npcId)
             ? withConversation(npc, state.playerName(), cleanMessage, state.teaPartyAnnounced())
