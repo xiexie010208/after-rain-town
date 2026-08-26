@@ -56,7 +56,7 @@ export type MainEvent = {
 }
 
 export type SaveData = {
-  version: 2
+  version: 3
   sessionId?: string
   playerName: string
   started: boolean
@@ -72,6 +72,7 @@ export type SaveData = {
   npcRelations: Record<string, number>
   activeEvent?: MainEvent
   completedEventIds: string[]
+  checkedEventIds: string[]
   teaPreparation: number
   eventNotice?: string
 }
@@ -125,11 +126,11 @@ export const initialNpcs = (): Npc[] => [
 ]
 
 export const freshGame = (): SaveData => ({
-  version: 2,
+  version: 3,
   playerName: '', started: false, minute: 15 * 60 + 40, announced: false, dialogueCount: 0,
   gifts: { coffee: false, umbrella: false }, npcs: initialNpcs(), liveAi: false, muted: false, aiSource: 'MOCK',
   npcRelations: { 'weining:suhe': 24, 'alan:weining': 18, 'alan:suhe': 32 },
-  completedEventIds: [], teaPreparation: 15,
+  completedEventIds: [], checkedEventIds: [], teaPreparation: 15,
   logs: [
     { time: '15:35', text: '阿岚前往中央广场，因为她想筹备茶会。', tone: 'amber' },
     { time: '15:28', text: '魏宁留在咖啡馆，因为他需要恢复灵感。', tone: 'blue' },
@@ -148,9 +149,10 @@ export function migrateSave(raw: unknown): SaveData {
     return { ...fallback, ...saved, memories, impressions: saved.impressions ?? [], schedule: fallback.schedule }
   })
   return {
-    ...base, ...old, version: 2, npcs,
+    ...base, ...old, version: 3, npcs,
     npcRelations: old.npcRelations ?? base.npcRelations,
     completedEventIds: old.completedEventIds ?? [],
+    checkedEventIds: old.checkedEventIds ?? [],
     teaPreparation: old.teaPreparation ?? 15,
   }
 }
@@ -204,13 +206,17 @@ export function advanceWorld(state: SaveData, minutes: number, log?: Omit<Log, '
   }
 
   if (!next.activeEvent) {
-    const definition = eventDefinitions.find((item) => item.triggerMinute <= minute && !next.completedEventIds.includes(item.id))
+    const definition = eventDefinitions.find((item) =>
+      item.triggerMinute <= minute && minute <= item.triggerMinute + 10 && !next.checkedEventIds.includes(item.id))
     if (definition) {
-      const activeEvent: MainEvent = {
-        ...definition, status: 'active', deadlineMinute: minute + 20, replies: {},
+      next = { ...next, checkedEventIds: [...next.checkedEventIds, definition.id] }
+      if (next.announced || Math.random() < 0.3) {
+        const activeEvent: MainEvent = {
+          ...definition, status: 'active', deadlineMinute: minute + 20, replies: {},
+        }
+        next = { ...next, activeEvent, eventNotice: activeEvent.notification }
+        logs.push({ time: formatTime(minute), text: `${activeEvent.title}在${activeEvent.locationName}发生了。`, tone: 'amber' })
       }
-      next = { ...next, activeEvent, eventNotice: activeEvent.notification }
-      logs.push({ time: formatTime(minute), text: `${activeEvent.title}在${activeEvent.locationName}发生了。`, tone: 'amber' })
     }
   }
 

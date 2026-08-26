@@ -21,8 +21,10 @@ export class RainTownScene extends Phaser.Scene {
   private destinationMarker?: Phaser.GameObjects.Ellipse
   private people = new Map<string, Phaser.GameObjects.Container>()
   private peopleSprites = new Map<string, Phaser.GameObjects.Sprite>()
+  private peopleFrames = new Map<string, number>()
   private npcGrids = new Map<string, GridPoint>()
   private eventMarker?: Phaser.GameObjects.Container
+  private lastBackgroundInteractionAt = 0
   private walking = false
   private blocked = new Set([
     '1,2', '2,1', '10,7', '3,9', '11,3', '7,8',
@@ -115,6 +117,7 @@ export class RainTownScene extends Phaser.Scene {
   private moveNpc(id: string, location: string, index: number) {
     const person = this.people.get(id)
     const sprite = this.peopleSprites.get(id)
+    const frame = this.peopleFrames.get(id) ?? 0
     const base = this.locationGrids[location] ?? this.locationGrids.plaza
     const offsets: GridPoint[] = [{ x: -1, y: 0 }, { x: 1, y: 0 }, { x: 0, y: -1 }]
     const target = { x: Math.max(0, base.x + offsets[index].x), y: Math.max(0, base.y + offsets[index].y) }
@@ -123,14 +126,14 @@ export class RainTownScene extends Phaser.Scene {
     this.npcGrids.set(id, target)
     const point = this.iso(target)
     if (sprite) {
-      sprite.setTexture(point.y < person.y ? 'town-characters-back' : 'town-characters')
+      sprite.setTexture(point.y < person.y ? 'town-characters-back' : 'town-characters', frame)
       sprite.setFlipX(point.x < person.x)
     }
     this.tweens.killTweensOf(person)
     this.tweens.add({
       targets: person, x: point.x, y: point.y - 14, duration: 900, ease: 'Sine.easeInOut',
       onUpdate: () => person.setDepth(person.y + 94),
-      onComplete: () => sprite?.setTexture('town-characters').setFlipX(false),
+      onComplete: () => sprite?.setTexture('town-characters', frame).setFlipX(false),
     })
   }
 
@@ -157,10 +160,13 @@ export class RainTownScene extends Phaser.Scene {
 
   private showBackgroundInteraction() {
     if (this.eventMarker) return
+    const now = this.time.now
+    if (now - this.lastBackgroundInteractionAt < 15000 || Math.random() > 0.3) return
     const options = [
       ['alan', '待会儿广场见。'], ['weining', '雨后的颜色很特别。'], ['suhe', '热茶已经准备好了。'],
     ] as const
     const [id, text] = options[Phaser.Math.Between(0, options.length - 1)]
+    this.lastBackgroundInteractionAt = now
     this.showBubble(id, text, false)
   }
 
@@ -289,6 +295,7 @@ export class RainTownScene extends Phaser.Scene {
     c.add([shadow, sprite, label])
     this.people.set(id, c)
     this.peopleSprites.set(id, sprite)
+    this.peopleFrames.set(id, frame)
     this.npcGrids.set(id, { x, y })
     if (isPlayer) this.playerSprite = sprite
     if (!isPlayer) {
