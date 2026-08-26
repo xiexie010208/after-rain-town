@@ -68,6 +68,22 @@ public class GameService {
         return talkInternal(id, npcId, message, liveRequested, onDelta);
     }
 
+    @Transactional(readOnly = true)
+    public AiDialogueService.EventDialogueReply eventDialogue(String id, List<String> participantIds,
+                                                               String eventTitle, String action, String attitude,
+                                                               String playerLine, boolean liveRequested) {
+        var state = get(id);
+        if (participantIds == null || participantIds.isEmpty() || participantIds.size() > 3) {
+            throw new IllegalArgumentException("事件参与者数量无效");
+        }
+        var participants = participantIds.stream().map(npcId -> state.npcs().stream()
+            .filter(npc -> npc.id().equals(npcId)).findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("NPC不存在"))).toList();
+        var safeTitle = eventTitle == null ? "小镇事件" : eventTitle.strip().substring(0, Math.min(eventTitle.strip().length(), 40));
+        var safeLine = playerLine == null ? "" : playerLine.strip().substring(0, Math.min(playerLine.strip().length(), 120));
+        return aiDialogueService.eventReplies(state, participants, safeTitle, action, attitude, safeLine, liveRequested);
+    }
+
     private ChatResult talkInternal(String id, String npcId, String message, boolean liveRequested,
                                     Consumer<String> onDelta) {
         var entity = repository.findById(id).orElseThrow(() -> new GameNotFoundException(id));

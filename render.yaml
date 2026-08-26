@@ -40,7 +40,7 @@ services:
       - key: AI_FALLBACK_MODEL
         value: deepseek-v4-pro
       - key: AI_READ_TIMEOUT_SECONDS
-        value: "45"
+        value: "5"
 
 databases:
   - name: after-rain-town-db

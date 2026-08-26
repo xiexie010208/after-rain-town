@@ -24,4 +24,4 @@ app:
     api-key: ${AI_API_KEY:}
     model: ${AI_MODEL:deepseek-v4-flash}
     fallback-model: ${AI_FALLBACK_MODEL:deepseek-v4-pro}
-    read-timeout-seconds: ${AI_READ_TIMEOUT_SECONDS:25}
+    read-timeout-seconds: ${AI_READ_TIMEOUT_SECONDS:5}

@@ -7,6 +7,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 import org.springframework.beans.factory.annotation.Value;
@@ -96,6 +97,21 @@ public class AiDialogueService {
         }
     }
 
+    public EventDialogueReply eventReplies(GameState state, List<GameState.NpcState> participants,
+                                           String eventTitle, String action, String attitude,
+                                           String playerLine, boolean liveRequested) {
+        if (!liveRequested || apiKey == null || apiKey.isBlank()) {
+            return mockEventReplies(participants, eventTitle, attitude);
+        }
+        try {
+            return new EventDialogueReply(callEvent(primaryModel, state, participants, eventTitle,
+                action, attitude, playerLine), "LIVE", primaryModel);
+        } catch (RuntimeException failure) {
+            log.warn("Event AI model {} failed: {}", primaryModel, safeFailure(failure));
+            return mockEventReplies(participants, eventTitle, attitude);
+        }
+    }
+
     private String safeFailure(RuntimeException failure) {
         String message = failure.getMessage();
         return failure.getClass().getSimpleName() + (message == null ? "" : ": " + message.replaceAll("sk-[A-Za-z0-9_-]+", "sk-***"));
@@ -179,6 +195,46 @@ public class AiDialogueService {
             });
     }
 
+    private Map<String, String> callEvent(String model, GameState state, List<GameState.NpcState> participants,
+                                          String eventTitle, String action, String attitude, String playerLine) {
+        var cast = participants.stream().map(npc -> "%s（%s，%s，关系%d/100，记忆：%s）".formatted(
+            npc.name(), npc.role(), npc.personality(), npc.playerRelation(), String.join("；", npc.memories())))
+            .toList();
+        var system = """
+            你为网页游戏《雨后小镇》的主要事件生成NPC回应。不要展示思考过程，不使用Markdown。
+            只能为给定NPC各写一句不超过55个汉字的自然中文台词，不得增加角色、地点、道具或修改数值。
+            严格输出JSON对象，键必须是NPC id，值是台词，不得输出JSON以外的内容。
+            当前玩家：%s；事件：%s；参与者：%s
+            """.formatted(state.playerName(), eventTitle, String.join("；", cast));
+        var user = "玩家选择%s，以%s态度说：“%s”。请让每名参与者回应一句。".formatted(action, attitude, playerLine);
+        var payload = new LinkedHashMap<String, Object>();
+        payload.put("model", model);
+        payload.put("messages", List.of(Map.of("role", "system", "content", system), Map.of("role", "user", "content", user)));
+        payload.put("thinking", Map.of("type", "disabled"));
+        payload.put("temperature", 0.65);
+        payload.put("max_tokens", 220);
+        payload.put("response_format", Map.of("type", "json_object"));
+        JsonNode response = client.post().uri("/chat/completions")
+            .header("Authorization", "Bearer " + apiKey)
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(payload)
+            .retrieve().body(JsonNode.class);
+        var content = response == null ? "" : response.path("choices").path(0).path("message").path("content").asText("").strip();
+        if (content.isBlank()) throw new IllegalStateException("模型返回空内容");
+        try {
+            var json = objectMapper.readTree(content);
+            var replies = new LinkedHashMap<String, String>();
+            for (var npc : participants) {
+                var text = json.path(npc.id()).asText("").strip();
+                if (text.isBlank()) throw new IllegalStateException("缺少NPC台词：" + npc.id());
+                replies.put(npc.id(), text.substring(0, Math.min(text.length(), 90)));
+            }
+            return replies;
+        } catch (Exception parseFailure) {
+            throw new IllegalStateException("事件台词格式无效", parseFailure);
+        }
+    }
+
     private DialogueReply mockReply(GameState.NpcState npc, boolean announced) {
         String text = switch (npc.id()) {
             case "alan" -> announced ? "我看到公告了！只要大家愿意来，我可以帮你把气氛热起来。" : "雨后的广场很适合聚会。你要不要先把时间写到公告栏上？";
@@ -188,5 +244,19 @@ public class AiDialogueService {
         return new DialogueReply(text, "MOCK", "built-in");
     }
 
+    private EventDialogueReply mockEventReplies(List<GameState.NpcState> participants, String eventTitle, String attitude) {
+        var replies = new LinkedHashMap<String, String>();
+        for (var npc : participants) {
+            var text = switch (npc.id()) {
+                case "alan" -> eventTitle.contains("黄昏") ? "谢谢你一直记得大家的感受，今晚一定会很温暖。" : "你愿意搭把手，我一下就安心多了。";
+                case "weining" -> attitude.contains("幽默") ? "那我保留一点蓝色，免得这场雨觉得自己没被邀请。" : "我明白了，也许安静和温暖并不冲突。";
+                default -> attitude.contains("直接") ? "可以，只要不耽误时间，我会配合这个安排。" : "先听完彼此的想法，确实会更稳妥。";
+            };
+            replies.put(npc.id(), text);
+        }
+        return new EventDialogueReply(replies, "MOCK", "built-in");
+    }
+
     public record DialogueReply(String text, String source, String model) {}
+    public record EventDialogueReply(Map<String, String> replies, String source, String model) {}
 }

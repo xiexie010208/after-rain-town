@@ -2,6 +2,10 @@ import Phaser from 'phaser'
 
 type GridPoint = { x: number; y: number }
 type PathNode = GridPoint & { g: number; h: number; parent?: PathNode }
+type WorldUpdate = {
+  npcs: Array<{ id: string; location: string; action: string }>
+  activeEvent?: { id: string; location: string; title: string; participants: string[] }
+}
 
 const GRID_WIDTH = 12
 const GRID_HEIGHT = 10
@@ -15,11 +19,18 @@ export class RainTownScene extends Phaser.Scene {
   private tileH = 44
   private origin = { x: 525, y: 70 }
   private destinationMarker?: Phaser.GameObjects.Ellipse
+  private people = new Map<string, Phaser.GameObjects.Container>()
+  private peopleSprites = new Map<string, Phaser.GameObjects.Sprite>()
+  private npcGrids = new Map<string, GridPoint>()
+  private eventMarker?: Phaser.GameObjects.Container
   private walking = false
   private blocked = new Set([
     '1,2', '2,1', '10,7', '3,9', '11,3', '7,8',
     '8,1', '9,1', '10,1', '8,2', '9,2', '10,2', '9,3',
   ])
+  private locationGrids: Record<string, GridPoint> = {
+    home: { x: 3, y: 6 }, plaza: { x: 5, y: 4 }, cafe: { x: 8, y: 4 }, garden: { x: 4, y: 2 },
+  }
 
   constructor() { super('rain-town') }
 
@@ -86,6 +97,82 @@ export class RainTownScene extends Phaser.Scene {
     })
 
     this.time.addEvent({ delay: 100, loop: true, callback: () => this.rainDrop() })
+    this.time.addEvent({ delay: 9000, loop: true, callback: () => this.showBackgroundInteraction() })
+    window.addEventListener('rain-town:world-update', this.onWorldUpdate as EventListener)
+    window.dispatchEvent(new CustomEvent('rain-town:scene-ready'))
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      window.removeEventListener('rain-town:world-update', this.onWorldUpdate as EventListener)
+    })
+  }
+
+  private onWorldUpdate = (raw: Event) => {
+    const world = (raw as CustomEvent<WorldUpdate>).detail
+    if (!world) return
+    world.npcs.forEach((npc, index) => this.moveNpc(npc.id, npc.location, index))
+    this.renderEventMarker(world.activeEvent)
+  }
+
+  private moveNpc(id: string, location: string, index: number) {
+    const person = this.people.get(id)
+    const sprite = this.peopleSprites.get(id)
+    const base = this.locationGrids[location] ?? this.locationGrids.plaza
+    const offsets: GridPoint[] = [{ x: -1, y: 0 }, { x: 1, y: 0 }, { x: 0, y: -1 }]
+    const target = { x: Math.max(0, base.x + offsets[index].x), y: Math.max(0, base.y + offsets[index].y) }
+    const previous = this.npcGrids.get(id)
+    if (!person || (previous && keyOf(previous) === keyOf(target))) return
+    this.npcGrids.set(id, target)
+    const point = this.iso(target)
+    if (sprite) {
+      sprite.setTexture(point.y < person.y ? 'town-characters-back' : 'town-characters')
+      sprite.setFlipX(point.x < person.x)
+    }
+    this.tweens.killTweensOf(person)
+    this.tweens.add({
+      targets: person, x: point.x, y: point.y - 14, duration: 900, ease: 'Sine.easeInOut',
+      onUpdate: () => person.setDepth(person.y + 94),
+      onComplete: () => sprite?.setTexture('town-characters').setFlipX(false),
+    })
+  }
+
+  private renderEventMarker(event?: WorldUpdate['activeEvent']) {
+    this.eventMarker?.destroy(true)
+    this.eventMarker = undefined
+    if (!event) return
+    const point = this.iso(this.locationGrids[event.location] ?? this.locationGrids.plaza)
+    const marker = this.add.container(point.x, point.y + 8).setDepth(point.y + 850)
+    const glow = this.add.ellipse(0, 0, 150, 68, 0xf2b85f, 0.12).setStrokeStyle(3, 0xffcf79, 0.9)
+    const badge = this.add.text(0, -56, `!  ${event.title}`, {
+      fontFamily: 'system-ui', fontStyle: 'bold', fontSize: '14px', color: '#fff5d5',
+      backgroundColor: '#6d3f20ee', padding: { x: 13, y: 8 },
+    }).setOrigin(0.5)
+    marker.add([glow, badge]).setSize(180, 105).setInteractive({ useHandCursor: true })
+    marker.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, inputEvent: Phaser.Types.Input.EventData) => {
+      inputEvent.stopPropagation()
+      window.dispatchEvent(new CustomEvent('rain-town:event-open'))
+    })
+    this.tweens.add({ targets: glow, scale: 1.18, alpha: 0.26, duration: 900, yoyo: true, repeat: -1 })
+    event.participants.forEach((id) => this.showBubble(id, '！', true))
+    this.eventMarker = marker
+  }
+
+  private showBackgroundInteraction() {
+    if (this.eventMarker) return
+    const options = [
+      ['alan', '待会儿广场见。'], ['weining', '雨后的颜色很特别。'], ['suhe', '热茶已经准备好了。'],
+    ] as const
+    const [id, text] = options[Phaser.Math.Between(0, options.length - 1)]
+    this.showBubble(id, text, false)
+  }
+
+  private showBubble(id: string, text: string, important: boolean) {
+    const person = this.people.get(id)
+    if (!person) return
+    const bubble = this.add.text(person.x, person.y - 105, text, {
+      fontFamily: 'system-ui', fontStyle: important ? 'bold' : 'normal', fontSize: important ? '20px' : '12px',
+      color: important ? '#6d3f20' : '#263d43', backgroundColor: important ? '#fff0c9ee' : '#f1eee2ee',
+      padding: { x: important ? 10 : 8, y: important ? 6 : 5 },
+    }).setOrigin(0.5).setDepth(1100)
+    this.tweens.add({ targets: bubble, y: bubble.y - 8, alpha: 0, delay: important ? 1700 : 2300, duration: 500, onComplete: () => bubble.destroy() })
   }
 
   private addLocationLabel(label: string, x: number, y: number) {
@@ -200,6 +287,9 @@ export class RainTownScene extends Phaser.Scene {
       backgroundColor: isPlayer ? '#167466e8' : '#0b1c22e8', padding: { x: 7, y: 4 },
     }).setOrigin(0.5)
     c.add([shadow, sprite, label])
+    this.people.set(id, c)
+    this.peopleSprites.set(id, sprite)
+    this.npcGrids.set(id, { x, y })
     if (isPlayer) this.playerSprite = sprite
     if (!isPlayer) {
       c.setSize(74, 96).setInteractive({ useHandCursor: true })

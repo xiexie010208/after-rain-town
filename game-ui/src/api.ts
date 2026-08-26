@@ -65,6 +65,65 @@ export async function sendDialogueStream(
   return result
 }
 
+export type EventDialogueRequest = {
+  eventId: string
+  eventTitle: string
+  participantIds: string[]
+  action: string
+  attitude: string
+  playerLine: string
+  live: boolean
+}
+
+type EventDialogueResult = { replies: Record<string, string>; source: string; model: string }
+type EventStreamEvent = {
+  type: 'delta' | 'done'
+  npcId?: string
+  text?: string
+  result?: EventDialogueResult
+}
+
+export async function sendEventDialogueStream(
+  sessionId: string,
+  payload: EventDialogueRequest,
+  onDelta: (npcId: string, text: string) => void,
+) {
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), 5000)
+  try {
+    const response = await fetch(`${API_URL}/api/games/${sessionId}/events/dialogue/stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/x-ndjson' },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    })
+    if (!response.ok || !response.body) throw new Error(`API ${response.status}`)
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let result: EventDialogueResult | undefined
+    const consumeLine = (line: string) => {
+      if (!line.trim()) return
+      const event = JSON.parse(line) as EventStreamEvent
+      if (event.type === 'delta' && event.npcId && event.text) onDelta(event.npcId, event.text)
+      if (event.type === 'done' && event.result) result = event.result
+    }
+    while (true) {
+      const { done, value } = await reader.read()
+      buffer += decoder.decode(value, { stream: !done })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''
+      lines.forEach(consumeLine)
+      if (done) break
+    }
+    consumeLine(buffer)
+    if (!result) throw new Error('事件台词未正常结束')
+    return result
+  } finally {
+    window.clearTimeout(timeout)
+  }
+}
+
 export async function saveSnapshot(sessionId: string, snapshot: unknown) {
   return request<unknown>(`/api/games/${sessionId}/snapshot`, {
     method: 'PUT',

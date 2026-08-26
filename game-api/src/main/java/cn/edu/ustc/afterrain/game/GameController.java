@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
+import java.util.List;
 import org.springframework.http.MediaType;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
@@ -67,6 +68,19 @@ public class GameController {
         };
     }
 
+    @PostMapping(value = "/{id}/events/dialogue/stream", produces = MediaType.APPLICATION_NDJSON_VALUE)
+    public StreamingResponseBody eventDialogueStream(@PathVariable String id,
+                                                      @Valid @RequestBody EventDialogueRequest request) {
+        return output -> {
+            var result = service.eventDialogue(id, request.participantIds(), request.eventTitle(),
+                request.action(), request.attitude(), request.playerLine(), Boolean.TRUE.equals(request.live()));
+            for (var entry : result.replies().entrySet()) {
+                writeEventStreamEvent(output, new EventStreamEvent("delta", entry.getKey(), entry.getValue(), null));
+            }
+            writeEventStreamEvent(output, new EventStreamEvent("done", null, null, result));
+        };
+    }
+
     private void writeStreamEvent(OutputStream output, StreamEvent event) {
         try {
             output.write(objectMapper.writeValueAsBytes(event));
@@ -75,6 +89,12 @@ public class GameController {
         } catch (IOException failure) {
             throw new UncheckedIOException(failure);
         }
+    }
+
+    private void writeEventStreamEvent(OutputStream output, EventStreamEvent event) throws IOException {
+        output.write(objectMapper.writeValueAsBytes(event));
+        output.write('\n');
+        output.flush();
     }
 
     @PutMapping("/{id}/snapshot")
@@ -96,5 +116,16 @@ public class GameController {
     public record StartRequest(@Size(max = 20) String playerName) {}
     public record DialogueRequest(@NotBlank String npcId, @NotBlank @Size(max = 200) String message, Boolean live) {}
     public record StreamEvent(String type, String text, GameService.ChatResult result) {}
+    public record EventDialogueRequest(
+        @NotBlank String eventId,
+        @NotBlank @Size(max = 40) String eventTitle,
+        List<@NotBlank String> participantIds,
+        @NotBlank @Size(max = 20) String action,
+        @NotBlank @Size(max = 20) String attitude,
+        @NotBlank @Size(max = 120) String playerLine,
+        Boolean live
+    ) {}
+    public record EventStreamEvent(String type, String npcId, String text,
+        cn.edu.ustc.afterrain.ai.AiDialogueService.EventDialogueReply result) {}
     public record ErrorResponse(String message) {}
 }

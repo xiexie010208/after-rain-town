@@ -59,4 +59,15 @@ class GameServiceTest {
         assertThat(result.state().conversationsRemaining()).isEqualTo(19);
         assertThat(service.get(started.sessionId()).logs()).hasSize(3);
     }
+
+    @Test
+    void eventDialogueFallsBackWithoutConsumingFreeDialogue() {
+        var started = service.start("小雨");
+        var result = service.eventDialogue(started.sessionId(), java.util.List.of("weining", "suhe"),
+            "创意分歧", "进行调解", "温和", "先听听彼此的想法。", true);
+
+        assertThat(result.source()).isEqualTo("MOCK");
+        assertThat(result.replies()).containsKeys("weining", "suhe");
+        assertThat(service.get(started.sessionId()).conversationsRemaining()).isEqualTo(20);
+    }
 }
