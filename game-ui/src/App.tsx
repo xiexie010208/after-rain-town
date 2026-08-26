@@ -265,6 +265,7 @@ function App() {
   }
 
   const resetGame = () => {
+    if (game.started && !window.confirm('重新开始会清空当前人物关系、记忆和事件进度，确定继续吗？')) return
     localStorage.removeItem('after-rain-town-save')
     setGame(freshGame())
     setSelected(0)
@@ -300,7 +301,7 @@ function App() {
           <button title={`当前响应来源：${game.aiSource}`} className={`mode-button ${game.liveAi ? 'live' : 'demo'}`} onClick={() => setGame((current) => ({ ...current, liveAi: !current.liveAi }))}>🧠　{game.liveAi ? '真实 AI' : '稳定演示'} <i /></button>
           <button className="world-button" onClick={() => setEndingOpen(true)}>◉　影响世界</button>
           <button className="publish-button" onClick={() => setNoticeOpen(true)}>📣　发布活动</button>
-          <button className="reset-button" onClick={resetGame}>重新开始</button>
+          <button className="reset-button" onClick={resetGame}>↻　重新开始</button>
         </div>
       </header>
 
