@@ -70,4 +70,20 @@ class GameServiceTest {
         assertThat(result.replies()).containsKeys("weining", "suhe");
         assertThat(service.get(started.sessionId()).conversationsRemaining()).isEqualTo(20);
     }
+
+    @Test
+    void streamsEachEventParticipantWithoutConsumingFreeDialogue() {
+        var started = service.start("小雨");
+        var streamed = new java.util.concurrent.ConcurrentHashMap<String, StringBuilder>();
+
+        var result = service.eventDialogueStreaming(started.sessionId(), java.util.List.of("weining", "suhe"),
+            "创意分歧", "进行调解", "温和", "先听听彼此的想法。", true,
+            (npcId, delta) -> streamed.computeIfAbsent(npcId, ignored -> new StringBuilder()).append(delta));
+
+        assertThat(streamed).containsKeys("weining", "suhe");
+        assertThat(streamed.get("weining").toString()).isEqualTo(result.replies().get("weining"));
+        assertThat(streamed.get("suhe").toString()).isEqualTo(result.replies().get("suhe"));
+        assertThat(result.source()).isEqualTo("MOCK");
+        assertThat(service.get(started.sessionId()).conversationsRemaining()).isEqualTo(20);
+    }
 }

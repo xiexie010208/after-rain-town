@@ -89,7 +89,8 @@ export async function sendEventDialogueStream(
   onDelta: (npcId: string, text: string) => void,
 ) {
   const controller = new AbortController()
-  const timeout = window.setTimeout(() => controller.abort(), 5000)
+  // 后端会在约 5 秒时将超时的单个 NPC 无感降级，这里留出网络传输余量。
+  const timeout = window.setTimeout(() => controller.abort(), 6500)
   try {
     const response = await fetch(`${API_URL}/api/games/${sessionId}/events/dialogue/stream`, {
       method: 'POST',

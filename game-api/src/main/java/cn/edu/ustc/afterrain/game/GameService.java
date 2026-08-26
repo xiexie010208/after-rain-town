@@ -5,9 +5,11 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.ArrayList;
+import java.util.concurrent.CompletableFuture;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -73,15 +75,56 @@ public class GameService {
                                                                String eventTitle, String action, String attitude,
                                                                String playerLine, boolean liveRequested) {
         var state = get(id);
-        if (participantIds == null || participantIds.isEmpty() || participantIds.size() > 3) {
+        var participants = resolveParticipants(state, participantIds);
+        var safeTitle = truncate(eventTitle, "小镇事件", 40);
+        var safeLine = truncate(playerLine, "", 120);
+        return aiDialogueService.eventReplies(state, participants, safeTitle, action, attitude, safeLine, liveRequested);
+    }
+
+    @Transactional(readOnly = true)
+    public AiDialogueService.EventDialogueReply eventDialogueStreaming(
+        String id, List<String> participantIds, String eventTitle, String action, String attitude,
+        String playerLine, boolean liveRequested, BiConsumer<String, String> onDelta
+    ) {
+        var state = get(id);
+        var participants = resolveParticipants(state, participantIds);
+        var safeTitle = truncate(eventTitle, "小镇事件", 40);
+        var safeLine = truncate(playerLine, "", 120);
+
+        var futures = participants.stream().map(npc -> CompletableFuture.supplyAsync(() ->
+            aiDialogueService.streamEventReply(state, npc, safeTitle, action, attitude, safeLine,
+                liveRequested, delta -> onDelta.accept(npc.id(), delta))
+        )).toList();
+
+        CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
+        var replies = new LinkedHashMap<String, String>();
+        var completed = new ArrayList<AiDialogueService.DialogueReply>();
+        for (int index = 0; index < participants.size(); index++) {
+            var reply = futures.get(index).join();
+            completed.add(reply);
+            replies.put(participants.get(index).id(), reply.text());
+        }
+        var liveCount = completed.stream().filter(reply -> reply.source().startsWith("LIVE")).count();
+        var source = completed.stream().allMatch(reply -> reply.source().equals("LIVE")) ? "LIVE"
+            : liveCount == 0 ? "MOCK" : "LIVE_PARTIAL";
+        var model = completed.stream().map(AiDialogueService.DialogueReply::model).distinct().count() == 1
+            ? completed.get(0).model() : "mixed";
+        return new AiDialogueService.EventDialogueReply(replies, source, model);
+    }
+
+    private List<GameState.NpcState> resolveParticipants(GameState state, List<String> participantIds) {
+        if (participantIds == null || participantIds.isEmpty() || participantIds.size() > 3
+            || participantIds.stream().distinct().count() != participantIds.size()) {
             throw new IllegalArgumentException("事件参与者数量无效");
         }
-        var participants = participantIds.stream().map(npcId -> state.npcs().stream()
+        return participantIds.stream().map(npcId -> state.npcs().stream()
             .filter(npc -> npc.id().equals(npcId)).findFirst()
             .orElseThrow(() -> new IllegalArgumentException("NPC不存在"))).toList();
-        var safeTitle = eventTitle == null ? "小镇事件" : eventTitle.strip().substring(0, Math.min(eventTitle.strip().length(), 40));
-        var safeLine = playerLine == null ? "" : playerLine.strip().substring(0, Math.min(playerLine.strip().length(), 120));
-        return aiDialogueService.eventReplies(state, participants, safeTitle, action, attitude, safeLine, liveRequested);
+    }
+
+    private String truncate(String value, String fallback, int maximumLength) {
+        var normalized = value == null ? fallback : value.strip();
+        return normalized.substring(0, Math.min(normalized.length(), maximumLength));
     }
 
     private ChatResult talkInternal(String id, String npcId, String message, boolean liveRequested,

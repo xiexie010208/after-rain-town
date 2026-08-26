@@ -112,6 +112,35 @@ public class AiDialogueService {
         }
     }
 
+    public DialogueReply streamEventReply(GameState state, GameState.NpcState npc,
+                                           String eventTitle, String action, String attitude,
+                                           String playerLine, boolean liveRequested,
+                                           Consumer<String> onDelta) {
+        if (!liveRequested || apiKey == null || apiKey.isBlank()) {
+            var text = mockEventLine(npc, eventTitle, attitude);
+            onDelta.accept(text);
+            return new DialogueReply(text, "MOCK", "built-in");
+        }
+        var delivered = new StringBuilder();
+        Consumer<String> tracked = delta -> {
+            delivered.append(delta);
+            onDelta.accept(delta);
+        };
+        var request = """
+            当前主要事件：%s。玩家选择“%s”，态度是“%s”，并说：“%s”。
+            请以你自己的身份立即回应一句，不超过55个汉字。只说台词，不解释事件规则。
+            """.formatted(eventTitle, action, attitude, playerLine);
+        try {
+            return new DialogueReply(callStream(primaryModel, state, npc, request, tracked), "LIVE", primaryModel);
+        } catch (RuntimeException failure) {
+            log.warn("Event streaming AI model {} for {} failed: {}", primaryModel, npc.id(), safeFailure(failure));
+            if (!delivered.isEmpty()) return new DialogueReply(delivered.toString(), "LIVE_PARTIAL", primaryModel);
+            var text = mockEventLine(npc, eventTitle, attitude);
+            onDelta.accept(text);
+            return new DialogueReply(text, "MOCK", "built-in");
+        }
+    }
+
     private String safeFailure(RuntimeException failure) {
         String message = failure.getMessage();
         return failure.getClass().getSimpleName() + (message == null ? "" : ": " + message.replaceAll("sk-[A-Za-z0-9_-]+", "sk-***"));
@@ -247,14 +276,17 @@ public class AiDialogueService {
     private EventDialogueReply mockEventReplies(List<GameState.NpcState> participants, String eventTitle, String attitude) {
         var replies = new LinkedHashMap<String, String>();
         for (var npc : participants) {
-            var text = switch (npc.id()) {
-                case "alan" -> eventTitle.contains("黄昏") ? "谢谢你一直记得大家的感受，今晚一定会很温暖。" : "你愿意搭把手，我一下就安心多了。";
-                case "weining" -> attitude.contains("幽默") ? "那我保留一点蓝色，免得这场雨觉得自己没被邀请。" : "我明白了，也许安静和温暖并不冲突。";
-                default -> attitude.contains("直接") ? "可以，只要不耽误时间，我会配合这个安排。" : "先听完彼此的想法，确实会更稳妥。";
-            };
-            replies.put(npc.id(), text);
+            replies.put(npc.id(), mockEventLine(npc, eventTitle, attitude));
         }
         return new EventDialogueReply(replies, "MOCK", "built-in");
+    }
+
+    private String mockEventLine(GameState.NpcState npc, String eventTitle, String attitude) {
+        return switch (npc.id()) {
+            case "alan" -> eventTitle.contains("黄昏") ? "谢谢你一直记得大家的感受，今晚一定会很温暖。" : "你愿意搭把手，我一下就安心多了。";
+            case "weining" -> attitude.contains("幽默") ? "那我保留一点蓝色，免得这场雨觉得自己没被邀请。" : "我明白了，也许安静和温暖并不冲突。";
+            default -> attitude.contains("直接") ? "可以，只要不耽误时间，我会配合这个安排。" : "先听完彼此的想法，确实会更稳妥。";
+        };
     }
 
     public record DialogueReply(String text, String source, String model) {}

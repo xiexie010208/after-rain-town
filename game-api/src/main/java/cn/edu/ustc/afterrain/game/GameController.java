@@ -72,12 +72,21 @@ public class GameController {
     public StreamingResponseBody eventDialogueStream(@PathVariable String id,
                                                       @Valid @RequestBody EventDialogueRequest request) {
         return output -> {
-            var result = service.eventDialogue(id, request.participantIds(), request.eventTitle(),
-                request.action(), request.attitude(), request.playerLine(), Boolean.TRUE.equals(request.live()));
-            for (var entry : result.replies().entrySet()) {
-                writeEventStreamEvent(output, new EventStreamEvent("delta", entry.getKey(), entry.getValue(), null));
+            var outputLock = new Object();
+            try {
+                var result = service.eventDialogueStreaming(id, request.participantIds(), request.eventTitle(),
+                    request.action(), request.attitude(), request.playerLine(), Boolean.TRUE.equals(request.live()),
+                    (npcId, delta) -> {
+                        synchronized (outputLock) {
+                            writeEventStreamEvent(output, new EventStreamEvent("delta", npcId, delta, null));
+                        }
+                    });
+                synchronized (outputLock) {
+                    writeEventStreamEvent(output, new EventStreamEvent("done", null, null, result));
+                }
+            } catch (UncheckedIOException failure) {
+                throw failure.getCause();
             }
-            writeEventStreamEvent(output, new EventStreamEvent("done", null, null, result));
         };
     }
 
@@ -91,10 +100,14 @@ public class GameController {
         }
     }
 
-    private void writeEventStreamEvent(OutputStream output, EventStreamEvent event) throws IOException {
-        output.write(objectMapper.writeValueAsBytes(event));
-        output.write('\n');
-        output.flush();
+    private void writeEventStreamEvent(OutputStream output, EventStreamEvent event) {
+        try {
+            output.write(objectMapper.writeValueAsBytes(event));
+            output.write('\n');
+            output.flush();
+        } catch (IOException failure) {
+            throw new UncheckedIOException(failure);
+        }
     }
 
     @PutMapping("/{id}/snapshot")
